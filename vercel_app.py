@@ -16,3 +16,4 @@ if __name__ == "__main__":
         "--server.enableCORS", "false",
         "--server.enableXsrfProtection", "false"
     ])
+    

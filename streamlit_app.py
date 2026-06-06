@@ -8,6 +8,7 @@ import os
 import re
 from datetime import datetime
 from dotenv import load_dotenv
+from groq import Groq
 
 # Cargar API key
 load_dotenv()
@@ -138,19 +139,16 @@ def minusculas(texto):
     return f"⬇️ `{texto}` → **{texto.lower()}**"
 
 # ============================================
-# INICIALIZAR MODELO
+# INICIALIZAR MODELO (GROQ DIRECTO - SIN LANGCHAIN)
 # ============================================
 
 @st.cache_resource
-def init_llm():
+def init_groq():
     try:
-        from langchain_groq import ChatGroq
-        llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            api_key=GROQ_API_KEY
-        )
-        return llm
+        if not GROQ_API_KEY:
+            return None
+        client = Groq(api_key=GROQ_API_KEY)
+        return client
     except Exception as e:
         st.error(f"❌ Error de inicialización: {e}")
         return None
@@ -213,7 +211,11 @@ if not GROQ_API_KEY:
     st.error("### ❌ Missing API Key. Check your .env file.")
     st.stop()
 
-llm = init_llm()
+client = init_groq()
+if not client:
+    st.error("### ❌ Failed to initialize Groq client.")
+    st.stop()
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -224,17 +226,44 @@ for message in st.session_state.messages:
 
 def procesar_mensaje(mensaje: str) -> str:
     mensaje = mensaje.strip()
-    if mensaje.startswith('calc:'): return calculadora(mensaje[5:].strip())
-    if mensaje.startswith('len:'): return contar_caracteres(mensaje[4:].strip())
-    if mensaje.startswith('words:'): return contar_palabras(mensaje[6:].strip())
-    if mensaje.startswith('rev:'): return invertir(mensaje[4:].strip())
-    if mensaje.startswith('up:'): return mayusculas(mensaje[3:].strip())
-    if mensaje.startswith('low:'): return minusculas(mensaje[4:].strip())
     
+    # Comandos específicos
+    if mensaje.startswith('calc:'): 
+        return calculadora(mensaje[5:].strip())
+    if mensaje.startswith('len:'): 
+        return contar_caracteres(mensaje[4:].strip())
+    if mensaje.startswith('words:'): 
+        return contar_palabras(mensaje[6:].strip())
+    if mensaje.startswith('rev:'): 
+        return invertir(mensaje[4:].strip())
+    if mensaje.startswith('up:'): 
+        return mayusculas(mensaje[3:].strip())
+    if mensaje.startswith('low:'): 
+        return minusculas(mensaje[4:].strip())
+    if mensaje.startswith('chat:'):
+        pregunta = mensaje[5:].strip()
+        if not pregunta:
+            return "⚠️ Please provide a prompt."
+        try:
+            with st.spinner("⚡ KelvIA está procesando..."):
+                response = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": pregunta}],
+                    temperature=0.7
+                )
+                return f"⚡ {response.choices[0].message.content}"
+        except Exception as e:
+            return f"⚠️ System Error: {e}"
+    
+    # Chat libre (sin prefijo)
     try:
         with st.spinner("⚡ KelvIA está procesando..."):
-            response = llm.invoke(mensaje)
-            return f"⚡ {response.content}"
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": mensaje}],
+                temperature=0.7
+            )
+            return f"⚡ {response.choices[0].message.content}"
     except Exception as e:
         return f"⚠️ System Error: {e}"
 

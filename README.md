@@ -1,4 +1,5 @@
 # ⚡ KelvIA · Cognitive Agentic Engine
+[![Tests](https://github.com/KelvinW918/ai-agent-template/actions/workflows/test.yml/badge.svg)](https://github.com/KelvinW918/ai-agent-template/actions/workflows/test.yml)
 
 <div align="center">
 
